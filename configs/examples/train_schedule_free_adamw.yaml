@@ -1,0 +1,108 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Example: train with Schedule-Free AdamW (Defazio et al., NeurIPS 2024).
+#
+# Paper:        "The Road Less Scheduled" — https://arxiv.org/abs/2405.15682
+# Reference:    https://github.com/facebookresearch/schedule_free
+# Port:         src/optim/schedule_free.py (verbatim, Apache-2.0)
+# Trainer hook: src/training/beetle_trainer.py
+#                 — calls optimizer.train()/.eval() around training and
+#                   checkpoint saves
+#                 — initialize_lr_scheduler returns a no-op for this
+#                   optimizer (warmup is INTERNAL via warmup_steps)
+#
+# To enable, set ``training.optimization.optimizer: schedule_free_adamw``
+# and configure the Schedule-Free hyperparameters in the SAME block. Any
+# external ``lr_scheduler`` is ignored (a no-op scheduler is installed so
+# checkpoint plumbing remains unchanged).
+# ─────────────────────────────────────────────────────────────────────────────
+run_name: beetle-monolingual-humanscale-eng-schedulefree
+hf_user: Beetle-HumanScale
+model:
+  architecture: pico
+  params:
+    n_layers: 14
+    d_model: 768
+    vocab_size: 50000
+    attention_n_heads: 12
+    attention_n_kv_heads: 1
+    max_seq_len: 512
+    batch_size: 64
+    position_emb_theta: 10000.0
+    activation_hidden_dim: 3072
+    norm_eps: 1.0e-05
+    dropout: 0.1
+data:
+  data_mix: monolingual
+  lang_sources:
+  - Beetle-HumanScale/eng-100M
+  pretokenized: true
+  pretokenized_cache_dir: ./pretok_cache/beetle-monolingual-humanscale-eng
+tokenizer:
+  pretrained_tokenizer_path: Beetle-HumanScale/bpe-humanscale-eng
+  dataset_source: babybabel
+  vocab_size: 50000
+  vocab_sharing: shared
+  type: bpe
+  target_tokens: 100000000
+  compression: equal
+  output_dir: ./tokenizers/eng_shared
+  overwrite: false
+  push_to_hub: true
+training:
+  max_steps: 10000
+  batch_size: 64
+  seq_len: 512
+  target_effective_batch: 64
+  fabric:
+    accelerator: cuda
+    devices: 4
+    strategy: ddp
+    precision: bf16-mixed
+  optimization:
+    # ── Schedule-Free AdamW ────────────────────────────────────────────────
+    # NOTE: the lr_scheduler block below is IGNORED when this optimizer is
+    # selected. Warmup is configured inline via ``warmup_steps``.
+    optimizer: schedule_free_adamw
+    lr: 0.0025                 # Schedule-Free's recommended base LR
+    betas: [0.9, 0.999]
+    eps: 1.0e-08
+    weight_decay: 0.0
+    warmup_steps: 500          # Internal linear warmup
+    r: 0.0                     # Polynomial weighting exponent (paper default)
+    weight_lr_power: 2.0       # lr-power weighting (paper default)
+    # The two fields below are inert under schedule_free_adamw but are kept
+    # so any tooling that requires them does not crash. The trainer installs
+    # a no-op LR scheduler and skips external warmup.
+    lr_scheduler: linear_with_warmup
+    lr_warmup_steps: 0
+checkpointing:
+  runs_dir: ./runs
+  auto_resume: true
+  save_to_hf: true
+  export_final_only: false
+  keep_local_checkpoints: 1
+  # IMPORTANT: checkpoints are saved with the optimizer in eval mode so
+  # persisted weights are the running-average ``x`` iterate (the inference
+  # iterate). The trainer restores train mode automatically after each save.
+  checkpoint_steps:
+  - 0
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  - 128
+  - 256
+  - 512
+  - 1024
+  - 2048
+  - 4096
+  - 8192
+ewc:
+  enabled: false
+maml:
+  enabled: false
+generative_replay:
+  enabled: false

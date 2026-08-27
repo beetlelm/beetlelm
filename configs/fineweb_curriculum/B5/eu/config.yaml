@@ -1,0 +1,82 @@
+hf_user: Beetle-Data
+run_name: beetlelm_eu-en_B5_curriculum
+model:
+  architecture: pico
+  params:
+    n_layers: 14
+    d_model: 768
+    vocab_size: 50000
+    attention_n_heads: 12
+    attention_n_kv_heads: 1
+    max_seq_len: 512
+    batch_size: 64
+    position_emb_theta: 10000.0
+    activation_hidden_dim: 3072
+    norm_eps: 1.0e-05
+    dropout: 0.1
+data:
+  stream_mode: curriculum
+  indexed_hf_repos:
+    l1: Beetle-Data/eu-curriculum-24B
+    l2: Beetle-Data/en-curriculum-24B
+  topic_aligned_batching: true
+  n_topics: 200
+  splits:
+    train: 0.98
+    val: 0.02
+curriculum:
+  type: smooth
+  condition: B5
+tokenizer:
+  repo: Beetle-Data/tokenizer-eu-en
+  type: bpe
+  vocab_size: 50000
+training:
+  max_steps: 91552
+  seq_len: 512
+  batch_size: 64
+  target_effective_batch: 512
+  fabric:
+    accelerator: cuda
+    strategy: auto
+    precision: bf16-mixed
+    devices: 8
+  optimization:
+    optimizer: adamw
+    lr: 0.0005
+    weight_decay: 0.01
+    lr_scheduler: cosine
+    lr_warmup_steps: 4577
+monitoring:
+  save_to_wandb: true
+  logging:
+    log_every_n_steps: 50
+checkpointing:
+  save_every_n_steps: 4577
+  checkpoint_every_n_steps: 4577
+  auto_resume: true
+  save_to_hf: true
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 915
+    batch_size: 64
+    sequence_idx: -1
+    layer_suffixes:
+    - attention
+    - swiglu
+    - norm
+    compute_gradients: false
+    learning_dynamics_dir: learning_dynamics
+    save_training_batch: true
+    cleanup_local: true
+    keep_n_local: 1
+polca:
+  enabled: true
+  every_n_steps: 500
+  k_eigenvectors: 32
+  basis_rank: 32
+  holdout_batch_size: 8
+  holdout_seq_len: 512
+  artifact_dir: polca
+  push_to_hf: true
+  precision: fp32

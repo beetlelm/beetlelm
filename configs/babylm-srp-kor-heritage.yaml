@@ -1,0 +1,83 @@
+# configs/default.yaml -  DATA_MIX_PHASES = {"balanced": BALANCED, "late": LATE, "sequential": SEQUENTIAL,"heritage": HERITAGE}
+
+hf_user: "BeetleLM"
+run_name: "babylm-srp-kor-heritage"
+model:
+  architecture: "pico"
+  params:
+    # Basic Architecture
+    n_layers: 4
+    d_model: 256
+    vocab_size: 32128          # Required by PicoDecoder __init__
+    
+    # Attention Block
+    attention_n_heads: 4
+    attention_n_kv_heads: 1
+    max_seq_len: 128
+    batch_size: 8              # Required by Attention __init__
+    position_emb_theta: 10000.0 # Required by RoPE __init__
+    
+    # MLP / SwiGLU Block
+    # Usually 4 * d_model, or (2/3 * 4 * d_model) rounded to a multiple of 256
+    activation_hidden_dim: 1024 
+    
+    # Normalization
+    norm_eps: 0.00001          # Required by RMSNorm __init__
+    dropout: 0.1
+
+# --- DATA SECTION ---
+data:
+  lang_sources: ["BabyLM-community/babylm-srp"]
+  l2_streams: ["BabyLM-community/babylm-kor"]
+  splits:
+    train: 0.9
+    val: 0.1
+
+# --- TOKENIZER SECTION ---
+tokenizer:
+  l1_dataset: "BabyLM-community/babylm-srp"
+  l2_dataset: "BabyLM-community/babylm-kor"
+  type: "bpe"
+  vocab_size: 32000
+  output_dir: "./tokenizers"
+  overwrite: true
+  push_to_hub: true
+  data_mix: "heritage"
+
+# --- MONITORING SECTION ---
+monitoring:
+  save_to_wandb: false
+  logging:
+    log_every_n_steps: 50
+
+# --- TRAINING SECTION ---
+training:
+  max_steps: 2000
+  seq_len: 128
+  fabric:
+    accelerator: "cpu"
+    precision: 32
+  optimization:
+    optimizer: "adamw"
+    lr: 0.0005
+    lr_scheduler: "linear_with_warmup"  # Add this
+    lr_warmup_steps: 100               # Add this
+
+# --- CHECKPOINTING SECTION ---
+checkpointing:
+  save_every_n_steps: 200
+  auto_resume: true
+  save_to_hf: true
+  # Learning dynamics: capture activations/weights and mirror them to HF `main`
+  # with pico-compatible commit messages so pico-analyze can consume the repo.
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 200
+    batch_size: 32
+    sequence_idx: -1
+    layer_suffixes: ["attention", "swiglu", "norm"]
+    compute_gradients: false
+    learning_dynamics_dir: "learning_dynamics"
+    save_training_batch: true
+    cleanup_local: true
+    keep_n_local: 1

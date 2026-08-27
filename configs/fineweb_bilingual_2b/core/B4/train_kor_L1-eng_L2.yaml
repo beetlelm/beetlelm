@@ -1,0 +1,97 @@
+run_name: beetle-bilingual-l2-50-classroom-20-b4-fineweb-2b-kor-eng
+hf_user: Beetle-FineWeb-2B
+model:
+  architecture: pico
+  params:
+    n_layers: 14
+    d_model: 768
+    vocab_size: 50000
+    attention_n_heads: 12
+    attention_n_kv_heads: 1
+    max_seq_len: 512
+    batch_size: 64
+    position_emb_theta: 10000.0
+    activation_hidden_dim: 3072
+    norm_eps: 1.0e-05
+    dropout: 0.1
+data:
+  data_mix: B4
+  lang_sources:
+  - Beetle-Data/ko-2B-pretok
+  l2_streams:
+  - Beetle-Data/en-for-ko-2B-pretok
+  pretokenized: true
+  pretokenized_cache_dir: ./pretok_cache/fineweb-2b/kor_L1-eng_L2
+tokenizer:
+  pretrained_tokenizer_path: Beetle-Data/tokenizer-ko-en
+  dataset_source: fineweb
+  vocab_size: 50000
+  vocab_sharing: shared
+  type: bpe
+  target_tokens: 1000000000
+  output_dir: ./tokenizers/fineweb_2b_kor_L1-eng_L2_shared
+  overwrite: false
+  push_to_hub: true
+training:
+  max_steps: 7629
+  batch_size: 64
+  seq_len: 512
+  target_effective_batch: 512
+  fabric:
+    accelerator: cuda
+    devices: 8
+    strategy: ddp
+    precision: bf16-mixed
+  optimization:
+    optimizer: adamw
+    lr: 0.0005
+    lr_warmup_steps: 381
+    lr_scheduler: linear_with_warmup
+checkpointing:
+  runs_dir: ./runs
+  auto_resume: false
+  save_to_hf: true
+  export_final_only: false
+  keep_local_checkpoints: 1
+  checkpoint_steps:
+  - 0
+  - 1
+  - 2
+  - 4
+  - 6
+  - 8
+  - 16
+  - 64
+  - 256
+  - 1024
+  - 3814
+  - 3815
+  - 3816
+  - 3818
+  - 3820
+  - 3822
+  - 3830
+  - 3878
+  - 4070
+  - 4096
+  - 4838
+curriculum:
+  type: smooth
+  condition: B4
+  mode: tokens
+ewc:
+  enabled: false
+maml:
+  enabled: false
+generative_replay:
+  enabled: false
+polca:
+  enabled: true
+  every_n_steps: 500
+  k_eigenvectors: 32
+  basis_rank: 32
+  holdout_batch_size: 8
+  holdout_seq_len: 512
+  artifact_dir: polca
+  push_to_hf: true
+  precision: fp32

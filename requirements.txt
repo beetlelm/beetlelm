@@ -1,0 +1,16 @@
+# Full runtime dependencies for beetlelm (mirrors pyproject.toml [project.dependencies]).
+# For the download-free CPU quickstart (beetlelm.toy) you only need the light
+# subset: torch, transformers, numpy, pyyaml, click.
+lightning>=2.4.0
+torch>=2.5.1
+transformers>=4.45.2
+datasets>=4.0.0
+huggingface-hub[cli]>=0.25.1
+safetensors>=0.4.0
+click>=8.1.7
+wandb>=0.18.1
+evaluate>=0.4.3
+rich>=13.9.4
+omegaconf>=2.3.0
+pyyaml>=6.0
+numpy>=1.24

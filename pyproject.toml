@@ -1,0 +1,78 @@
+[project]
+name = "beetlelm"
+version = "0.1.0"
+description = "A framework for transparently training bilingual language models, storing comprehensive checkpoints for learning-dynamics research."
+authors = [{ name = "Suchir Salhan", email = "suchirsalhan@gmail.com" }]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["language-models", "bilingual", "pretraining", "learning-dynamics", "interpretability"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Full training-stack dependencies. For the download-free CPU quickstart
+# (`beetlelm.toy` / `beetlelm-toy`) only the light subset is needed:
+# torch, transformers, numpy, pyyaml, click — install those and then
+# `pip install -e . --no-deps` to skip the heavy stack.
+dependencies = [
+    "lightning>=2.4.0,<3.0",
+    "click>=8.1.7,<9.0",
+    "wandb>=0.18.1",
+    "huggingface-hub[cli]>=0.25.1",
+    "datasets>=4.0.0",
+    "transformers>=4.45.2",
+    "evaluate>=0.4.3",
+    "rich>=13.9.4",
+    "omegaconf>=2.3.0,<3.0",
+    "safetensors>=0.4.0",
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+    "torch>=2.5.1",
+]
+
+[project.optional-dependencies]
+deepspeed = ["deepspeed>=0.16.2"]
+dev = ["pytest>=8.0.0", "ruff>=0.6", "ipykernel>=6.29.5", "jupyter>=1.1.1"]
+
+[project.scripts]
+# Full research trainer (Lightning, HF datasets, architecture zoo, continual learning):
+beetlelm-train = "beetlelm.cli.train:main"
+# Download-free CPU quickstart for newcomers:
+beetlelm-toy = "beetlelm.toy.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/BeetleLM/beetlelm"
+Repository = "https://github.com/BeetleLM/beetlelm"
+Documentation = "https://github.com/BeetleLM/beetlelm/blob/main/README.md"
+Issues = "https://github.com/BeetleLM/beetlelm/issues"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+
+# ─── Notes for users ─────────────────────────────────────────────────────────
+# 1. The `hnet` architecture (tokenizer-free hierarchical chunking) requires the
+#    upstream HazyResearch packages which are NOT on PyPI. Install separately:
+#        pip install mamba_ssm flash_attn causal_conv1d
+#        pip install git+https://github.com/goombalab/hnet.git
+#    The wrapper imports it lazily, so beetlelm installs cleanly without it; the
+#    error only surfaces if a YAML config selects `architecture: hnet`.
+# 2. DeepSpeed only works on Linux. Install with `pip install beetlelm[deepspeed]`.

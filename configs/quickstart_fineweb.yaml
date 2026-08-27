@@ -1,0 +1,125 @@
+# ============================================================================
+# BeetleLM Quickstart: FineWeb-Scale Bilingual
+# ============================================================================
+# Trains a 125M-param PicoDecoder on 24B tokens (12B per language).
+# Target: 1 node x 8xA100 GPUs, ~2-3 days wall-clock.
+# Architecture is identical to quickstart_human_scale.yaml; only the data
+# source, training budget, and checkpointing schedule differ.
+# ============================================================================
+
+run_name: "beetlelm_nld_L1-eng_L2_simultaneous_fineweb"
+hf_user: "Beetle-FineWeb2-24B"
+
+# --- MODEL -------------------------------------------------------------------
+# 125M-parameter LLaMA-style decoder (PicoDecoder) — same as human-scale
+model:
+  architecture: "pico"
+  params:
+    n_layers: 14                    # transformer layers
+    d_model: 768                    # hidden dimension
+    vocab_size: 50000               # BPE vocabulary size
+    attention_n_heads: 12           # query heads (head_dim = 768/12 = 64)
+    attention_n_kv_heads: 1         # KV heads (1 = Grouped Query Attention)
+    max_seq_len: 512                # context length
+    batch_size: 64                  # micro-batch per GPU
+    position_emb_theta: 10000.0     # RoPE base frequency
+    activation_hidden_dim: 3072     # SwiGLU intermediate dim (4 * d_model)
+    norm_eps: 1.0e-5                # RMSNorm epsilon
+    dropout: 0.1                    # dropout rate
+
+# --- DATA --------------------------------------------------------------------
+# FineWeb pretokenized Arrow datasets from HuggingFace Hub
+data:
+  data_mix: "B2"                                            # B1/B2/B3 curriculum condition
+  lang_sources: ["Beetle-Data/nl-28B"]                     # L1 pretokenized Arrow (~12B tokens)
+  l2_streams: ["Beetle-Data/en-for-nl-28B"]               # L2 pretokenized Arrow (~12B tokens)
+  pretokenized: true
+  pretokenized_cache_dir: "./pretok_cache/quickstart_fineweb"
+
+# --- TOKENIZER ---------------------------------------------------------------
+tokenizer:
+  pretrained_tokenizer_path: "Beetle-Data/tokenizer-nl-en"
+  dataset_source: "fineweb"
+  vocab_size: 50000
+  vocab_sharing: "shared"
+  type: "bpe"
+  target_tokens: 1000000000
+  output_dir: "./tokenizers/fineweb_nld_L1-eng_L2_shared"
+  overwrite: false
+  push_to_hub: true
+
+# --- TRAINING ----------------------------------------------------------------
+# 24B tokens / (512 tokens/seq x 512 effective batch) = 91,552 steps
+training:
+  max_steps: 91552
+  seq_len: 512
+  batch_size: 64                    # micro-batch per GPU (8 GPUs x 64 = 512 effective)
+  target_effective_batch: 512
+  fabric:
+    accelerator: "cuda"
+    devices: 8
+    strategy: "ddp"
+    precision: "bf16-mixed"
+  optimization:
+    optimizer: "adamw"
+    lr: 5.0e-4
+    weight_decay: 0.01
+    lr_scheduler: "linear_with_warmup"
+    lr_warmup_steps: 625            # ~0.7% of max_steps (rescaled from human-scale)
+
+# --- CURRICULUM --------------------------------------------------------------
+curriculum:
+  type: "smooth"
+  condition: "B2"                   # must match data.data_mix
+
+# --- CHECKPOINTING -----------------------------------------------------------
+# save_every_n_steps is the fallback safety net used by curriculum_scheduler.py
+# when a step falls outside the computed log2 schedule.
+# At 91,552 steps, 4578 gives ~20 regular checkpoints -- appropriate for the scale.
+# DO NOT use values below 4000 for FineWeb runs; 500-1000 produces 90-180 HF
+# branches and is too expensive at this scale.
+checkpointing:
+  runs_dir: "./runs"
+  auto_resume: true
+  save_to_hf: true
+  export_final_only: false
+  keep_local_checkpoints: 1
+  save_every_n_steps: 4578          # ~20 checkpoints; do not lower for FineWeb scale
+  # checkpoint_steps: computed dynamically via fineweb_checkpoint_schedule()
+  # (subsampled log2 from curriculum phase boundaries + save_every_n_steps fallback)
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 4578         # deprecated; LD fires at checkpoint-schedule steps
+    batch_size: 64
+    sequence_idx: -1
+    # Precise projections only -- reduces .pt file size vs broad ["attention","swiglu","norm"]
+    # and still satisfies pico-analyze's ov_circuit requirement for attention.v_proj /
+    # attention.o_proj keys. swiglu.w_2 captured for simple-component metrics.
+    layer_suffixes:
+      - "attention.v_proj"
+      - "attention.o_proj"
+      - "swiglu.w_2"
+    compute_gradients: false
+    learning_dynamics_dir: "learning_dynamics"
+    save_training_batch: true
+    cleanup_local: true
+    keep_n_local: 1
+
+# --- CONTINUAL LEARNING (disabled) ------------------------------------------
+ewc:
+  enabled: false
+maml:
+  enabled: false
+generative_replay:
+  enabled: false
+tilt:
+  enabled: false
+
+# --- MONITORING --------------------------------------------------------------
+monitoring:
+  save_to_wandb: false
+  logging:
+    log_every_n_steps: 50
+  # wandb:
+  #   project: "beetlelm-fineweb"
+  #   entity: "your-wandb-entity"

@@ -1,0 +1,30 @@
+{
+  "description": "Expected metrics for the download-free toy CPU runs (beetlelm.toy / beetlelm-toy). Use these to check your reproduction. Values are deterministic given the seed on CPU; allow a small tolerance (~0.05) across PyTorch versions and hardware. These are toy-scale sanity numbers, not research results.",
+  "environment": {
+    "python": "3.13",
+    "torch": "2.13.0",
+    "transformers": "5.14.1",
+    "device": "cpu"
+  },
+  "runs": {
+    "smoke": {
+      "config": "configs/smoke.yaml",
+      "n_params": 115008,
+      "steps": 3,
+      "seed": 0,
+      "final_loss": 5.067569,
+      "final_val_loss": 4.951613,
+      "tolerance": 0.05
+    },
+    "tiny_cpu": {
+      "config": "configs/tiny_cpu.yaml",
+      "n_params": 722048,
+      "steps": 200,
+      "seed": 42,
+      "final_loss": 0.196699,
+      "final_val_loss": 0.368761,
+      "approx_cpu_seconds": 14,
+      "tolerance": 0.05
+    }
+  }
+}

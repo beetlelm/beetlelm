@@ -1,0 +1,101 @@
+run_name: beetle-bilingual-balanced-b1-humanscale-deu-ind-maml-r40-lr-b2-lamol-l20
+hf_user: Beetle-HumanScale
+model:
+  architecture: pico
+  params:
+    n_layers: 14
+    d_model: 768
+    vocab_size: 50000
+    attention_n_heads: 12
+    attention_n_kv_heads: 1
+    max_seq_len: 512
+    batch_size: 64
+    position_emb_theta: 10000.0
+    activation_hidden_dim: 3072
+    norm_eps: 1.0e-05
+    dropout: 0.1
+data:
+  data_mix: B1
+  lang_sources:
+  - Beetle-HumanScale/deu-50M-deu-ind
+  pretokenized: true
+  pretokenized_cache_dir: ./pretok_cache/beetle-bilingual-balanced-b1-humanscale-deu-ind-maml-r40-lr-b2-lamol-l20
+  l2_streams:
+  - Beetle-HumanScale/ind-50M-deu-ind
+tokenizer:
+  pretrained_tokenizer_path: Beetle-HumanScale/bpe-humanscale-ind-deu
+  dataset_source: babybabel
+  vocab_size: 50000
+  vocab_sharing: shared
+  type: bpe
+  target_tokens: 100000000
+  compression: equal
+  output_dir: ./tokenizers/deu_L1-ind_L2_shared
+  overwrite: false
+  push_to_hub: true
+training:
+  max_steps: 10000
+  batch_size: 64
+  seq_len: 512
+  target_effective_batch: 64
+  fabric:
+    accelerator: cuda
+    devices: 4
+    strategy: ddp
+    precision: bf16-mixed
+  optimization:
+    optimizer: adamw
+    lr: 0.0005
+    lr_warmup_steps: 500
+    lr_scheduler: linear_with_warmup
+    exposure_lr:
+      plasticity_boost: 2.0
+checkpointing:
+  runs_dir: ./runs
+  auto_resume: true
+  save_to_hf: true
+  export_final_only: false
+  keep_local_checkpoints: 1
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 1
+    batch_size: 64
+    sequence_idx: -1
+    layer_suffixes:
+    - attention
+    - swiglu
+    - norm
+    compute_gradients: false
+    learning_dynamics_dir: learning_dynamics
+    save_training_batch: true
+    cleanup_local: true
+    keep_n_local: 1
+  checkpoint_steps:
+  - 0
+  - 1
+  - 2
+  - 4
+  - 6
+  - 8
+  - 16
+  - 32
+  - 64
+  - 128
+  - 256
+  - 512
+  - 1024
+  - 2048
+  - 4096
+  - 8192
+curriculum:
+  type: smooth
+  condition: B1
+ewc:
+  enabled: false
+maml:
+  enabled: true
+  hybrid_ratio: 0.4
+generative_replay:
+  enabled: true
+  lambda_replay: 0.2
+  trigger: phase_change

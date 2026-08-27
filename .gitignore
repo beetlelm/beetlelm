@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.hf_cache/
+pretok_cache/
+
+# Run outputs (training writes checkpoints/metrics here)
+runs/
+outputs/
+checkpoints/
+wandb/
+*.ckpt
+*.safetensors
+
+# Tokenizers produced by runs
+tokenizers/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,85 @@
+hf_user: "suchirsalhan"
+run_name: "beetlelm_bilingual_a100_v1"
+
+# --- MODEL SECTION ---
+model:
+  architecture: "pico"
+  params:
+    # Scaled up for meaningful learning on an A100
+    n_layers: 14               # Standard architecture (matches human-scale and FineWeb)
+    d_model: 768               # Standard "Base" size (was 256)
+    vocab_size: 32000          
+    
+    # Attention Block
+    attention_n_heads: 12      # Matches d_model (768/12 = 64 head_dim)
+    attention_n_kv_heads: 1    # Grouped Query Attention for speed
+    max_seq_len: 512           # A100s thrive on longer sequences (was 128)
+    batch_size: 64             # Micro-batch size per GPU
+    position_emb_theta: 10000.0 
+    
+    # MLP / SwiGLU Block
+    # 4 * d_model is standard; A100 handles this easily
+    activation_hidden_dim: 3072 
+    
+    # Normalization
+    norm_eps: 1e-5
+    dropout: 0.1
+
+# --- DATA SECTION ---
+data:
+  lang_sources: ["BabyLM-community/babylm-srp"]
+  l2_streams: ["BabyLM-community/babylm-kor"]
+  splits:
+    train: 0.98                # More data for training, less for val
+    val: 0.02
+
+# --- TOKENIZER SECTION ---
+tokenizer:
+  l1_dataset: "BabyLM-community/babylm-srp"
+  l2_dataset: "BabyLM-community/babylm-kor"
+  type: "bpe"
+  vocab_size: 32000
+  output_dir: "./tokenizers"
+  overwrite: false             # Avoid re-running if already done
+  push_to_hub: false
+  data_mix: "balanced"
+
+# --- MONITORING SECTION ---
+monitoring:
+  save_to_wandb: true          # Strongly recommended for A100 runs
+  logging:
+    log_every_n_steps: 10
+
+# --- TRAINING SECTION ---
+training:
+  max_steps: 10000             # Increased for deeper model convergence
+  seq_len: 512
+  fabric:
+    accelerator: "cuda"        # Switch to GPU
+    strategy: "auto"           # Allows for DDP if you use multiple A100s
+    precision: "bf16-mixed"    # A100 native support for BrainFloat16 (huge speedup)
+    devices: 1
+  optimization:
+    optimizer: "adamw"
+    lr: 6.0e-4                 # Slightly higher LR for larger models
+    weight_decay: 0.01
+    lr_scheduler: "cosine"     # Cosine is generally superior for LLMs
+    lr_warmup_steps: 500       # 5% of max_steps is a good rule of thumb
+
+# --- CHECKPOINTING SECTION ---
+checkpointing:
+  save_every_n_steps: 1000
+  auto_resume: true
+  # Learning dynamics: capture activations/weights and mirror them to HF `main`
+  # with pico-compatible commit messages so pico-analyze can consume the repo.
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 1000
+    batch_size: 64
+    sequence_idx: -1
+    layer_suffixes: ["attention", "swiglu", "norm"]
+    compute_gradients: false
+    learning_dynamics_dir: "learning_dynamics"
+    save_training_batch: true
+    cleanup_local: true
+    keep_n_local: 1

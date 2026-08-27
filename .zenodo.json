@@ -1,0 +1,20 @@
+{
+  "title": "beetlelm: a framework for transparently training bilingual language models",
+  "description": "A framework for transparently training bilingual (and monolingual/polyglot) language models and storing comprehensive checkpoints for learning-dynamics research, with a download-free CPU quickstart, reproducible toy baselines, and a HuggingFace-compatible checkpoint format.",
+  "upload_type": "software",
+  "license": "Apache-2.0",
+  "version": "0.1.0",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Salhan, Suchir"
+    }
+  ],
+  "keywords": [
+    "language-models",
+    "bilingual",
+    "pretraining",
+    "learning-dynamics",
+    "interpretability"
+  ]
+}

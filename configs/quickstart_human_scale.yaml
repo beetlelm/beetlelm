@@ -1,0 +1,136 @@
+# ============================================================================
+# BeetleLM Quickstart: Human-Scale Bilingual (Dutch-English, Balanced)
+# ============================================================================
+# Trains a 125M-param PicoDecoder on 100M tokens (50M per language).
+# Target: 1 node x 8xA100 GPUs, ~1 hour wall-clock.
+# ============================================================================
+
+run_name: "beetlelm_nld_L1-eng_L2_balanced"
+hf_user: "Beetle-HumanScale"
+
+# --- MODEL -------------------------------------------------------------------
+# 125M-parameter LLaMA-style decoder (PicoDecoder)
+model:
+  architecture: "pico"              # "pico" (LLaMA-style) or "bgpt" (GPT-2-style)
+  params:
+    n_layers: 14                    # transformer layers
+    d_model: 768                    # hidden dimension
+    vocab_size: 50000               # BPE vocabulary size
+    attention_n_heads: 12           # query heads (head_dim = 768/12 = 64)
+    attention_n_kv_heads: 1         # KV heads (1 = Grouped Query Attention)
+    max_seq_len: 512                # context length
+    batch_size: 64                  # micro-batch per GPU
+    position_emb_theta: 10000.0     # RoPE base frequency
+    activation_hidden_dim: 3072     # SwiGLU intermediate dim (4 * d_model)
+    norm_eps: 1.0e-5                # RMSNorm epsilon
+    dropout: 0.1                    # dropout rate
+
+# --- DATA --------------------------------------------------------------------
+# BabyBabel pretokenized Arrow datasets from HuggingFace Hub
+data:
+  data_mix: "balanced"                                    # curriculum: balanced, simultaneous, sequential, late, heritage, part_time
+  lang_sources: ["Beetle-HumanScale/nld-50M-eng-nld"] # L1 pretokenized Arrow (50M tokens)
+  l2_streams: ["Beetle-HumanScale/eng-50M-eng-nld"]  # L2 pretokenized Arrow (50M tokens)
+  pretokenized: true                                      # data is already tokenized (loaded from HF Arrow)
+  pretokenized_cache_dir: "./pretok_cache/quickstart_hs"  # local cache directory
+
+# --- TOKENIZER ---------------------------------------------------------------
+# Pretrained bilingual BPE tokenizer from HuggingFace Hub
+tokenizer:
+  pretrained_tokenizer_path: "Beetle-HumanScale/bpe-humanscale-eng-nld"
+  dataset_source: "babybabel"
+  vocab_size: 50000
+  vocab_sharing: "shared"           # "shared" or "per_language"
+  type: "bpe"                       # "bpe", "unigram", or "superbpe"
+  target_tokens: 100000000          # tokens used to train the tokenizer
+  compression: "equal"              # "equal", "proportional", or "weighted"
+  output_dir: "./tokenizers/quickstart_hs"
+  overwrite: false
+  push_to_hub: false
+
+# --- TRAINING ----------------------------------------------------------------
+training:
+  max_steps: 10000                  # total training steps
+  seq_len: 512                      # must match model.params.max_seq_len
+  batch_size: 64                    # must match model.params.batch_size
+  target_effective_batch: 64        # effective batch size (across all GPUs)
+  fabric:
+    accelerator: "cuda"
+    devices: 8                      # number of GPUs on this node
+    strategy: "ddp"                 # distributed data parallel
+    precision: "bf16-mixed"         # A100 native bfloat16
+  optimization:
+    optimizer: "adamw"              # optimizer: adamw, adam, sgd
+    lr: 5.0e-4                      # peak learning rate
+    weight_decay: 0.01              # AdamW weight decay
+    lr_scheduler: "linear_with_warmup"  # "linear_with_warmup", "cosine", or "exposure_based"
+    lr_warmup_steps: 500            # warmup steps (~5% of max_steps)
+
+# --- CURRICULUM --------------------------------------------------------------
+curriculum:
+  type: "smooth"                    # smooth curriculum transitions
+  condition: "balanced"             # must match data.data_mix
+
+# --- CHECKPOINTING -----------------------------------------------------------
+checkpointing:
+  runs_dir: "./runs"
+  auto_resume: true                 # resume from last checkpoint if available
+  save_to_hf: true                  # push checkpoints to HuggingFace Hub
+  export_final_only: false          # only export the final checkpoint
+  keep_local_checkpoints: 1         # number of local checkpoints to retain (0 = all)
+  save_every_n_steps: 1000          # fallback save interval
+  # checkpoint_steps: computed dynamically from curriculum phase boundaries
+  # (phase-aware log₂ schedule). Override with explicit list to use static schedule.
+  # Learning dynamics: capture activations/weights (+ optional gradients) and
+  # mirror them to HF `main` under learning_dynamics/ with pico-compatible
+  # commit messages so pico-analyze can consume the repo.
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 1000         # deprecated; LD fires at checkpoint-schedule steps
+    batch_size: 64
+    sequence_idx: -1
+    layer_suffixes: ["attention", "swiglu", "norm"]
+    compute_gradients: false        # set true to also save gradient tensors
+    learning_dynamics_dir: "learning_dynamics"
+    save_training_batch: true
+    cleanup_local: true
+    keep_n_local: 1
+
+# --- CONTINUAL LEARNING (all disabled for quickstart) ------------------------
+ewc:
+  enabled: false
+  # lambda_: 20.0                  # EWC regularization strength (0-40)
+  # n_fisher_samples: 10           # Monte-Carlo samples for Fisher estimation
+  # trigger: "phase_change"        # when to compute Fisher matrix
+
+maml:
+  enabled: false
+  # hybrid_ratio: 0.2              # probability of MAML episode per step (0-0.4)
+  # n_way: 5                       # N-way classification task size
+  # k_shot: 1                      # support set size
+  # inner_steps: 3                 # gradient steps per episode
+  # inner_lr: 0.1                  # inner loop learning rate
+
+generative_replay:
+  enabled: false
+  # lambda_replay: 0.2             # replay loss weight (0-0.5)
+  # replay_ratio: 0.5              # fraction of pseudo-samples per batch
+  # temperature: 1.0               # sampling temperature
+  # trigger: "phase_change"        # when to activate replay
+
+tilt:
+  enabled: false
+  # trigger: "phase_change"        # 'phase_change' or 'manual'
+  # trainable_modules:             # everything else is frozen at L1->L2
+  #   - embedding_proj
+  #   - de_embedding_proj
+  # reset_embeddings: false        # reinit embedding_proj at L2 start
+
+# --- MONITORING (optional) ---------------------------------------------------
+monitoring:
+  save_to_wandb: false              # set true to log to Weights & Biases
+  logging:
+    log_every_n_steps: 50           # console logging interval
+  # wandb:
+  #   project: "beetlelm"
+  #   entity: "your-wandb-entity"

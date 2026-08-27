@@ -1,0 +1,122 @@
+# ============================================================================
+# BeetleLM GPU Dry-Run: pico-analyze + beetle-analyze compatibility check
+# ============================================================================
+# Tiny 6-step training on GPU (8x CUDA DDP, bf16-mixed). Respects beetle's
+# dynamic phase-aware checkpoint schedule (NO `checkpoint_steps` override).
+#
+# Natural schedule for phase_starts=[0], max_steps=6:
+#     phase_log2_schedule([0], 6) = [0, 1, 2, 4] + max_steps
+#                                 = [0, 1, 2, 4, 6]
+#   -> 5 checkpoints, each pushed as step-{N} branch on HF, and mirrored
+#     onto `main` with pico-analyze-compatible commit history.
+# ============================================================================
+
+run_name: "beetlelm_gpu_dryrun"
+hf_user: "Beetle-HumanScale"   # EDIT: point at an HF namespace you can push to
+
+# --- MODEL -------------------------------------------------------------------
+# Tiny 2-layer PicoDecoder sized to fit comfortably in a single GPU.
+model:
+  architecture: "pico"
+  params:
+    n_layers: 2
+    d_model: 64
+    vocab_size: 50000           # must match the pretrained tokenizer vocab
+    attention_n_heads: 2
+    attention_n_kv_heads: 1
+    max_seq_len: 64
+    batch_size: 2
+    position_emb_theta: 10000.0
+    activation_hidden_dim: 128
+    norm_eps: 1.0e-5
+    dropout: 0.0
+
+# --- DATA --------------------------------------------------------------------
+# Reuse the quickstart pretokenized sources -- cheap to stream because
+# the loader yields tokens we only consume 6 batches of.
+data:
+  data_mix: "balanced"
+  lang_sources: ["Beetle-HumanScale/nld-50M-eng-nld"]
+  l2_streams: ["Beetle-HumanScale/eng-50M-eng-nld"]
+  pretokenized: true
+  pretokenized_cache_dir: "./pretok_cache/dryrun_gpu"
+
+# --- TOKENIZER ---------------------------------------------------------------
+tokenizer:
+  pretrained_tokenizer_path: "Beetle-HumanScale/bpe-humanscale-eng-nld"
+  dataset_source: "babybabel"
+  vocab_size: 50000
+  vocab_sharing: "shared"
+  type: "bpe"
+  target_tokens: 100000000
+  compression: "equal"
+  output_dir: "./tokenizers/dryrun_gpu"
+  overwrite: false
+  push_to_hub: false
+
+# --- TRAINING ----------------------------------------------------------------
+training:
+  max_steps: 6
+  seq_len: 64                   # must match model.params.max_seq_len
+  batch_size: 2
+  target_effective_batch: 2
+  fabric:
+    accelerator: "cuda"         # GPU, 8x DDP, bf16-mixed
+    devices: 8
+    strategy: "ddp"
+    precision: "bf16-mixed"
+    num_nodes: 1
+  optimization:
+    optimizer: "adamw"
+    lr: 5.0e-4
+    weight_decay: 0.01
+    lr_scheduler: "linear_with_warmup"
+    lr_warmup_steps: 2
+
+# --- CURRICULUM --------------------------------------------------------------
+# Balanced -> phase_starts=[0] -> natural schedule [0, 1, 2, 4, 6].
+curriculum:
+  type: "smooth"
+  condition: "balanced"
+
+# --- CHECKPOINTING -----------------------------------------------------------
+# INVARIANT: no `checkpoint_steps` key. The dynamic phase-aware schedule
+# (CurriculumCheckpointScheduler + phase_log2_schedule) decides the steps.
+checkpointing:
+  runs_dir: "./runs"
+  auto_resume: false
+  save_to_hf: true
+  export_final_only: false
+  keep_local_checkpoints: 0    # keep all local checkpoints for analysis
+  # Fallback interval -- set well above max_steps so ONLY the dynamic
+  # phase-aware schedule decides checkpoints. With max_steps=6 and the
+  # default phase_starts=[0], the natural schedule is [0, 1, 2, 4, 6].
+  save_every_n_steps: 1000000
+  # Learning dynamics: extract at every step so pico-analyze sees LD commits on main.
+  learning_dynamics:
+    enabled: true
+    log_every_n_steps: 1
+    batch_size: 2
+    sequence_idx: -1
+    layer_suffixes:
+      - "attention.v_proj"
+      - "attention.o_proj"
+      - "swiglu.w_2"
+    compute_gradients: false
+    save_training_batch: true
+    cleanup_local: false       # keep LD folders for ALL steps locally
+    keep_n_local: 0
+
+# --- CONTINUAL LEARNING (all disabled) ---------------------------------------
+ewc:
+  enabled: false
+maml:
+  enabled: false
+generative_replay:
+  enabled: false
+
+# --- MONITORING --------------------------------------------------------------
+monitoring:
+  save_to_wandb: false
+  logging:
+    log_every_n_steps: 1

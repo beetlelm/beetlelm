@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "beetlelm: a framework for transparently training bilingual language models"
+version: 0.1.0
+date-released: 2026-08-27
+license: Apache-2.0
+repository-code: "https://github.com/BeetleLM/beetlelm"
+url: "https://github.com/BeetleLM/beetlelm"
+authors:
+  - family-names: Salhan
+    given-names: Suchir
+keywords:
+  - language-models
+  - bilingual
+  - pretraining
+  - learning-dynamics
+  - interpretability
