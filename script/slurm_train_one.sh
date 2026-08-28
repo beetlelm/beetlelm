@@ -28,7 +28,7 @@ module load python/3.11.0-icl
 mkdir -p logs/slurm
 
 # Sourced env (NCCL/InfiniBand, HF cache on /rds scratch, venv path)
-SCRATCH_ROOT="${BEETLE_SCRATCH:-/rds/user/$USER/hpc-work}"
+SCRATCH_ROOT="${BEETLE_SCRATCH:-$HOME/beetle-scratch}"
 [[ -f "$SCRATCH_ROOT/beetle.env" ]] && source "$SCRATCH_ROOT/beetle.env"
 
 JOBID=$SLURM_JOB_ID

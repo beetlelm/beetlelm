@@ -14,7 +14,7 @@
 #   cluster, run `module avail python` and substitute the closest 3.10/3.11.
 #
 # Usage:
-#   cd /rds/user/$USER/hpc-work
+#   cd "$BEETLE_SCRATCH"   # your cluster scratch/work dir
 #   git clone <beetlelm-remote> beetlelm && cd beetlelm
 #   bash script/setup_wilkes3.sh
 # =============================================================================
@@ -27,7 +27,7 @@ if [[ "$HOSTNAME" != *login* && -z "${BEETLE_FORCE_SETUP:-}" ]]; then
     exit 1
 fi
 
-SCRATCH_ROOT="${BEETLE_SCRATCH:-/rds/user/$USER/hpc-work}"
+SCRATCH_ROOT="${BEETLE_SCRATCH:-$HOME/beetle-scratch}"
 VENV_DIR="${SCRATCH_ROOT}/pytorch-ampere-env"
 HF_CACHE="${SCRATCH_ROOT}/hf_cache"
 PRETOK_CACHE="${SCRATCH_ROOT}/pretok_cache"

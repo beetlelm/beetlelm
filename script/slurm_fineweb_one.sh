@@ -35,7 +35,7 @@ module load rhel8/default-amp
 module load python/3.11.0-icl
 mkdir -p logs/slurm
 
-SCRATCH_ROOT="${BEETLE_SCRATCH:-/rds/user/$USER/hpc-work}"
+SCRATCH_ROOT="${BEETLE_SCRATCH:-$HOME/beetle-scratch}"
 [[ -f "$SCRATCH_ROOT/beetle.env" ]] && source "$SCRATCH_ROOT/beetle.env"
 
 numnodes=$SLURM_JOB_NUM_NODES

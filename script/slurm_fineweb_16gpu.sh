@@ -40,7 +40,7 @@ module load rhel8/default-amp
 module load python/3.11.0-icl
 
 # ── Env from setup_wilkes3.sh ────────────────────────────────────────────────
-SCRATCH_ROOT="${BEETLE_SCRATCH:-/rds/user/$USER/hpc-work}"
+SCRATCH_ROOT="${BEETLE_SCRATCH:-$HOME/beetle-scratch}"
 # shellcheck disable=SC1091
 source "$SCRATCH_ROOT/beetle.env"
 # shellcheck disable=SC1091

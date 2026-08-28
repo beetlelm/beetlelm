@@ -29,7 +29,7 @@ from beetlelm.bilingual.tok.multilingual_tokenizer_manager import MultilingualTo
 from beetlelm.bilingual.data.curriculum import DataMixConfig
 from beetlelm.bilingual.data.condition_presets import get_condition, CONDITION_ALIASES, ALL_CONDITION_BUILDERS
 
-HUGGINGFACE_USER = "suchirsalhan"
+HUGGINGFACE_USER = os.environ.get("HUGGINGFACE_USER", "suchirsalhan")
 
 
 # -------------------------------

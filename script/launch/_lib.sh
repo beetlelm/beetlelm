@@ -79,7 +79,7 @@ export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:T
 # Operators on multi-tenant hosts may point this elsewhere (e.g. a shared
 # filesystem path) to coordinate across nodes — fine, because flock works
 # transparently over NFS v4+.
-: "${BEETLE_PIPELINE_STATE_DIR:=/Users/suchirsalhan/Documents/PHD/PHD/beetle_pipeline/state}"
+: "${BEETLE_PIPELINE_STATE_DIR:=${HOME}/.cache/beetlelm/pipeline/state}"
 : "${BEETLE_GPU_LOCK:=${BEETLE_PIPELINE_STATE_DIR}/gpu.lock}"
 
 # Per-process CUDA memory fraction read by the trainer (beetle_trainer.py).
