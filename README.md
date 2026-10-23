@@ -68,7 +68,7 @@ Reported training runs (Table 4):
 | 2B | ~2B | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 381 | 64 | 512 | 262,144 | 7,629 | BF16 | DDP | 8×A100 |
 | 24B | ~24B | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 625 | 64 | 512 | 262,144 | 91,552 | BF16 | DDP | 8×A100 |
 
-> **A note on scale.** Only `Beetle-FineWeb-24B-4` and `-24B-5` reached the full 24B budget; earlier "24B" runs are closer to ~3B, and earlier "2B" runs closer to ~300M. The 100M and 2B 125M-parameter models each train in under an hour on a single A100; a full 24B run takes ~5 hours on 8×A100.
+> **A note on scale.** The 100M and 2B 125M-parameter models each train in under an hour on a single A100; a full 24B run takes ~5 hours on 8×A100. The recommended full-24B collections are `Beetle-FineWeb-24B-4` and `-24B-5`; see [beetlelm.github.io/models.html](https://beetlelm.github.io/models.html).
 
 ---
 
