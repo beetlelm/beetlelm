@@ -36,7 +36,7 @@ Our **suite of pre-trained models** is already publicly available on our [Huggin
 6. **Research Ready**
    - Minimal, well-documented, **YAML-driven** code suitable for **forking and tailoring**
    - GPU-trained on **8×A100 (64GB)** with `DDP`, logging perplexity and evaluation metrics throughout training
-   - Works seamlessly with [beetle-analyze](https://github.com/beetlelm/beetle-analyze) for advanced post-training interpretation
+   - Works seamlessly with [beetle-analyze](https://github.com/beetlelm/beetle-analyze) for learning dynamics analysis
 
 ---
 
@@ -63,7 +63,7 @@ This uniformity means you can isolate the **language curriculum** (or the tokeni
 Reported training runs (Table 4):
 
 | Setting | Tokens | Model | Layers | `d_model` | Heads (Q/KV) | FFN | Seq | Vocab | Optim | LR | WD | Warmup | Micro-batch | Eff. batch | Tokens/step | Max steps | Precision | Parallelism | GPUs |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 100M | 100M | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 500 | 64 | 64 | 32,768 | 10,000 | BF16 | DDP | 8×A100 |
 | 2B | ~2B | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 381 | 64 | 512 | 262,144 | 7,629 | BF16 | DDP | 8×A100 |
 | 24B | ~24B | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 625 | 64 | 512 | 262,144 | 91,552 | BF16 | DDP | 8×A100 |
