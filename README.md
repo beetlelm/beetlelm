@@ -1,29 +1,32 @@
 # beetlelm
 
-A framework for transparently training bilingual (and monolingual / polyglot)
-language models and storing comprehensive checkpoints for learning-dynamics
-research. It ships a family of architectures, a bilingual data and tokenizer
-pipeline, continual-learning extensions, and a HuggingFace-compatible checkpoint
-format — plus a **download-free CPU quickstart** so a newcomer can train a real
-model in a couple of minutes without a GPU or any downloads.
+**Train a real bilingual language model on your laptop in ~15 seconds — no GPU, no downloads — then scale the same code to multi-GPU research runs.**
+
+`beetlelm` is the core training framework of the [Beetle](https://beetlelm.github.io)
+project: a suite of open bilingual (and monolingual / polyglot) small language models for
+studying second-language processing and learning dynamics. It ships a family of
+architectures, a bilingual data and tokenizer pipeline, continual-learning extensions, and
+a Hugging Face-compatible checkpoint format — plus a **download-free CPU quickstart** so a
+newcomer can train a real model in a couple of minutes.
 
 There are two entry points:
 
-- **`beetlelm-toy`** — the newcomer path. Trains the real PicoDecoder on a tiny
-  in-repo byte corpus on CPU, no downloads, light dependencies. Great for
-  kicking the tires and for CI.
-- **`beetlelm-train`** — the full research trainer (Lightning, HuggingFace
-  datasets, the architecture zoo, continual-learning modules). Built for
-  multi-GPU clusters and the configs under `configs/`.
+- **`beetlelm-toy`** — the newcomer path. Trains the real PicoDecoder on a tiny in-repo
+  byte corpus on CPU, no downloads, light dependencies. Great for kicking the tires and
+  for CI.
+- **`beetlelm-train`** — the full research trainer (Lightning, Hugging Face datasets, the
+  architecture zoo, continual-learning modules). Built for multi-GPU clusters and the
+  configs under `configs/`.
 
-Checkpoints from both are standard HuggingFace and reload with `from_pretrained`.
+Checkpoints from both are standard Hugging Face and reload with `from_pretrained`.
+Requires Python >=3.10.
 
 ## Install
 
 Full stack (pulls Lightning, datasets, wandb, HF Hub, ...):
 
 ```bash
-git clone https://github.com/BeetleLM/beetlelm.git
+git clone https://github.com/beetlelm/beetlelm.git
 cd beetlelm
 pip install -e .
 ```
@@ -75,7 +78,7 @@ diff your run against them (allow ~0.05 tolerance across hardware / PyTorch
 versions). Runs are deterministic on CPU given the seed. These are toy-scale
 sanity numbers, not research results.
 
-The run writes a HuggingFace checkpoint plus `metrics.json` to `runs/tiny_cpu/`:
+The run writes a Hugging Face checkpoint plus `metrics.json` to `runs/tiny_cpu/`:
 
 ```python
 from beetlelm.pico_decoder.pico_decoder import PicoDecoderHF
@@ -186,13 +189,27 @@ Weights & Biases is **forced offline by default** (`WANDB_MODE=offline`,
 `WANDB_DISABLED=true`, set on `import beetlelm`), so nothing phones home unless
 you explicitly opt in by setting those environment variables yourself.
 
+## Learn more
+
+- **Tutorial:** [beetlelm walkthrough](https://beetlelm.github.io/docs.html#beetlelm) on the project docs.
+- **Project home:** https://beetlelm.github.io
+- **Framework overview:** https://beetlelm.github.io/framework.html
+- **Paper:** *Beetle: A Bilingual Model Suite for Modelling Second-Language Processing* (EMNLP 2026) — https://arxiv.org/abs/2609.22633
+
+## Part of the Beetle ecosystem
+
+- **[beetlelm](https://github.com/beetlelm/beetlelm)** (this repo) — core training framework.
+- **[beetle-data](https://github.com/beetlelm/beetle-data)** — bilingual data-preparation pipeline.
+- **[beetle-analyze](https://github.com/beetlelm/beetle-analyze)** — evaluation and interpretability analysis toolkit.
+- **[beetle-explorer](https://github.com/beetlelm/beetle-explorer)** — no-code Colab model explorer.
+
 ## Citation / DOI
 
 If you use this software, please cite it (see [`CITATION.cff`](CITATION.cff)):
 
 ```
 Salhan, Suchir. beetlelm: a framework for transparently training bilingual
-language models. Version 0.1.0, 2026. https://github.com/BeetleLM/beetlelm
+language models. Version 0.1.0, 2026. https://github.com/beetlelm/beetlelm
 ```
 
 A `.zenodo.json` is included so the maintainer can connect the repository to
