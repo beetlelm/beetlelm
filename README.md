@@ -1,223 +1,226 @@
-# beetlelm
+# 🪲 **BeetleLM**
 
-**Train a real bilingual language model on your laptop in ~15 seconds — no GPU, no downloads — then scale the same code to multi-GPU research runs.**
+BeetleLM is a lightweight framework for transparently training **bilingual language models**—from human-scale (~100M training tokens) all the way up to large multilingual budgets (24B tokens)—with built-in rich checkpointing that captures activations, gradients, circuits, and the training batch itself, enabling detailed **learning-dynamics** research into second-language acquisition, curricula, and continual learning.
 
-`beetlelm` is the core training framework of the [Beetle](https://beetlelm.github.io)
-project: a suite of open bilingual (and monolingual / polyglot) small language models for
-studying second-language processing and learning dynamics. It ships a family of
-architectures, a bilingual data and tokenizer pipeline, continual-learning extensions, and
-a Hugging Face-compatible checkpoint format — plus a **download-free CPU quickstart** so a
-newcomer can train a real model in a couple of minutes.
+Our **suite of pre-trained models** is already publicly available on our [Hugging Face organization](https://huggingface.co/Beetle-HumanScale), and a family of dedicated companion libraries—[**beetle-data**](https://github.com/beetlelm/beetle-data) for corpus preparation, [**beetle-analyze**](https://github.com/beetlelm/beetle-analyze) for checkpoint studies, and [**beetle-explorer**](https://github.com/beetlelm/beetle-explorer) for interactive browsing—is fully released for deeper investigation.
 
-There are two entry points:
+> For a **detailed run-through**, check out the **full tutorial** on our website at [beetlelm.github.io/docs.html#beetlelm](https://beetlelm.github.io/docs.html#beetlelm).
 
-- **`beetlelm-toy`** — the newcomer path. Trains the real PicoDecoder on a tiny in-repo
-  byte corpus on CPU, no downloads, light dependencies. Great for kicking the tires and
-  for CI.
-- **`beetlelm-train`** — the full research trainer (Lightning, Hugging Face datasets, the
-  architecture zoo, continual-learning modules). Built for multi-GPU clusters and the
-  configs under `configs/`.
+---
 
-Checkpoints from both are standard Hugging Face and reload with `from_pretrained`.
-Requires Python >=3.10.
+## **Key Features**
 
-## Install
+1. **PicoDecoder: LLaMA-style Transformer Architecture**
+   - A 125M-parameter decoder with **RMSNorm**, **RoPE**, **grouped-query attention** (12 query heads / 1 KV head), and **SwiGLU** activations, trained in BF16 at sequence length 512
+   - **Width is the only scale knob**: `d_model ∈ {96, 384, 768, 1536}` gives the `tiny`/`small`/`medium`/`large` configs—the 125M "medium" (14 layers, `d_model` 768) is used for every reported run
+   - Ships with an **architecture zoo** alongside the decoder: **BGPT** (GPT-2-style), **BeetleMoE** (top-k mixture-of-experts with ST-MoE auxiliary losses), and **BeetleSSM** (Mamba-style state-space model)
 
-Full stack (pulls Lightning, datasets, wandb, HF Hub, ...):
+2. **Bilingual-First Tokenisation**
+   - The **MultilingualTokenizerManager** trains **BPE**, **Unigram**, and **SuperBPE** tokenisers on top of Hugging Face `tokenizers`
+   - Adds **per-language control tokens** (e.g. `<lang:en>`), scales the vocabulary with the number of languages, and uses **equal-compression sampling** so no language dominates the merges
+   - Vocabulary size and target compression are set from YAML; the shared bilingual vocabulary is **50,304** (≈50K) tokens
 
-```bash
-git clone https://github.com/beetlelm/beetlelm.git
-cd beetlelm
-pip install -e .
+3. **Curriculum Control (`DataMixConfig`)**
+   - Expresses a **continuous, time-varying mixture** `w(t)` over the language simplex, with an equivalent discrete-phase representation
+   - Five built-in curricula: **B1 Balanced** (50:50 throughout), **B2 Simultaneous** (L1-only for the first 30%, sigmoid onset, ~25% L2), **B3 Sequential** (L1 for the first third, sigmoid to L2-dominant, ~33.5% L2), **B4 Episodic** (L2 throughout but clustered in bursts, 80:20, 20% L2), and **B5 Late** (L1-only for the first 50%, sigmoid over 50–80%, ~10% L2)
+   - Custom curricula are defined directly in YAML
+
+4. **Comprehensive Checkpoints**
+   - A **log2 schedule** (restarting at each exposure phase) yields ~**30 checkpoints per model**
+   - Each checkpoint saves **gradients**, **activations**, **circuits**, **the training batch**, and **evaluation metrics**, in both **PyTorch** and **Hugging Face** formats, auto-uploaded to the Hub
+
+5. **Continual-Learning Toolkit**
+   - **15 strategies across 5 families**: parameter regularisation (EWC, SI, MAS), replay (LAMOL, InsCL, episodic), meta-learning (FO-MAML, SMLMT), distillation (KD, self-distillation, FitNets), and architectural/auxiliary methods (TILT, exposure-LR plasticity, ALiBi-scheduler, Shuffle-Dyck, EWC+MAML)
+   - Reported runs use **EWC**, **LAMOL**, and **exposure-LR plasticity**
+
+6. **Research Ready**
+   - Minimal, well-documented, **YAML-driven** code suitable for **forking and tailoring**
+   - GPU-trained on **8×A100 (64GB)** with `DDP`, logging perplexity and evaluation metrics throughout training
+   - Works seamlessly with [beetle-analyze](https://github.com/beetlelm/beetle-analyze) for advanced post-training interpretation
+
+---
+
+## **Training Philosophy**
+
+All models in the Beetle suite (both pre-trained and user-trained):
+
+- Employ **identical architectures** and **optimizer settings**
+- **Release their data in the order it was seen**, so runs are reproducible token-for-token
+- Automatically log **rich checkpoint data** (gradients, activations, circuits, the training batch)
+- Facilitate **direct cross-curriculum and cross-language comparisons**
+
+This uniformity means you can isolate the **language curriculum** (or the tokeniser, or the continual-learning strategy) as the primary variable, giving you clearer insights into **how bilingual models acquire a second language over the course of training**.
+
+---
+
+## **Resources**
+
+- **Pre-trained Models**, publicly hosted on [Hugging Face](https://huggingface.co/Beetle-HumanScale): **285 bilingual + 45 monolingual** models spanning **21 L1 languages**
+- **Datasets**: human-scale **BabyBabelLM** (100M tokens), plus **FineWeb-2** (L1) and **FineWeb-Edu** (English) for larger budgets, with **13-gram decontamination** and data released in the order seen
+- **Extensive Checkpoints** logging gradient, activation, and circuit snapshots at ~30 points per run
+- **Evaluation Metrics** (perplexity and more) tracked at each checkpoint
+
+Reported training runs (Table 4):
+
+| Setting | Tokens | Model | Layers | `d_model` | Heads (Q/KV) | FFN | Seq | Vocab | Optim | LR | WD | Warmup | Micro-batch | Eff. batch | Tokens/step | Max steps | Precision | Parallelism | GPUs |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 100M | 100M | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 500 | 64 | 64 | 32,768 | 10,000 | BF16 | DDP | 8×A100 |
+| 2B | ~2B | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 381 | 64 | 512 | 262,144 | 7,629 | BF16 | DDP | 8×A100 |
+| 24B | ~24B | PicoDecoder 125M | 14 | 768 | 12 / 1 | 3072 | 512 | 50K | AdamW | 5e-4 | 0.01 | 625 | 64 | 512 | 262,144 | 91,552 | BF16 | DDP | 8×A100 |
+
+> **A note on scale.** Only `Beetle-FineWeb-24B-4` and `-24B-5` reached the full 24B budget; earlier "24B" runs are closer to ~3B, and earlier "2B" runs closer to ~300M. The 100M and 2B 125M-parameter models each train in under an hour on a single A100; a full 24B run takes ~5 hours on 8×A100.
+
+---
+
+## **Core Components**
+
+- **PicoDecoder Model & Architecture Zoo**
+  - LLaMA-style auto-regressive transformer: RMSNorm, RoPE, grouped-query attention, SwiGLU
+  - Alternative backbones: **BGPT**, **BeetleMoE**, **BeetleSSM**—all config-selectable
+
+- **Bilingual Tokenisation**
+  - `MultilingualTokenizerManager` for BPE / Unigram / SuperBPE
+  - Per-language control tokens, vocabulary scaling, and equal-compression sampling
+
+- **Curriculum Engine (`DataMixConfig`)**
+  - Continuous `w(t)` language mixtures over the simplex, with the five built-in B1–B5 curricula and arbitrary YAML-defined schedules
+
+- **Training & Checkpointing**
+  - Automatic storage of model and optimizer states on a log2 schedule
+  - Periodic hooks for saving **learning dynamics** (gradients, activations, circuits, training batch)
+  - Logging to Weights & Biases, with auto-upload of checkpoints to Hugging Face
+
+- **Continual Learning**
+  - 15 strategies across parameter-regularisation, replay, meta-learning, distillation, and architectural/auxiliary families
+
+- **Config-Driven Setup**
+  - Specify architecture, tokeniser, curriculum, optimizer, continual-learning strategy, and logging settings in YAML
+  - Straightforward to extend or modify
+
+---
+
+## **Quick Start**
+
+1. **Install**
+
+   The quickest route is pip:
+   ```bash
+   # once released to PyPI
+   pip install beetlelm
+
+   # always works (installs straight from GitHub)
+   pip install git+https://github.com/beetlelm/beetlelm.git
+   ```
+
+   Or from source, for development:
+   ```bash
+   git clone https://github.com/beetlelm/beetlelm
+   cd beetlelm
+   pip install -e .
+   ```
+   This installs two console scripts: `beetlelm-train` (the full research trainer) and `beetlelm-toy` (a small, download-free example you can run to check the install).
+
+2. **Configure Environment**
+
+   Create a `.env` file at the root with your Hugging Face and Weights & Biases tokens:
+   ```bash
+   export HF_TOKEN=your_huggingface_token
+   export WANDB_API_KEY=your_wandb_key
+   ```
+
+3. **Train Your Model Suite**
+
+   - Edit (or pick) a config file under `configs/` to specify your architecture, tokeniser, and curriculum.
+   - Then run:
+     ```bash
+     beetlelm-train --config_path configs/examples/demo.yaml
+     ```
+   - This launches training, automatically checkpointing states and saving learning-dynamics data.
+   - To sanity-check the install first, run the local example:
+     ```bash
+     beetlelm-toy
+     ```
+
+4. **Explore Checkpoints**
+   - By default, checkpoints are stored under your configured run directory.
+   - Each checkpoint contains:
+     - **Model state** (PyTorch + Hugging Face formats)
+     - **Optimizer state**
+     - **Gradients, activations, and circuits** for interpretability
+     - **The training batch** and **evaluation logs** (e.g. perplexity)
+
+---
+
+## **Repository Structure**
+
+- **`src/beetlelm/pico_decoder/`**
+  - Core LLaMA-style decoder (GQA, RMSNorm, RoPE, SwiGLU)
+
+- **`src/beetlelm/bgpt/`**, **`src/beetlelm/beetle_moe/`**, **`src/beetlelm/beetle_ssm/`**
+  - The alternative architecture zoo: GPT-2-style, mixture-of-experts, and state-space backbones
+
+- **`src/beetlelm/bilingual/`**
+  - Bilingual tokenisation (`MultilingualTokenizerManager`), data mixing, and curriculum logic
+
+- **`src/beetlelm/continual/`**
+  - The 15 continual-learning strategies across 5 families
+
+- **`src/beetlelm/checkpointing/`**
+  - Logic for saving model states, gradients, activations, and circuits, plus Hugging Face upload
+
+- **`src/beetlelm/config/`**
+  - Dataclass-based config system (model, tokeniser, curriculum, training, checkpointing, logging)
+
+- **`src/beetlelm/training/`**
+  - Main training loop, distributed/multi-node orchestration, metrics, and checkpoint saving
+
+- **`src/beetlelm/toy/`**
+  - The download-free `beetlelm-toy` example for checking the install
+
+- **`configs/`**
+  - Ready-to-run YAML configs (curricula B1–B5, per-language and shared-vocabulary sweeps, condition sweeps)
+
+- **`script/`**
+  - Data-preparation, evaluation, and launch scripts
+
+- **`tests/`**
+  - Unit tests
+
+---
+
+## **Part of the Beetle ecosystem**
+
+BeetleLM is the training half of a wider toolkit for transparent bilingual LM research:
+
+- [**beetle-data**](https://github.com/beetlelm/beetle-data) — corpus preparation, mixing, and decontamination
+- [**beetle-analyze**](https://github.com/beetlelm/beetle-analyze) — checkpoint analysis of gradients, activations, and circuits
+- [**beetle-explorer**](https://github.com/beetlelm/beetle-explorer) — interactive browsing of models, curricula, and results
+- **Website**: [beetlelm.github.io](https://beetlelm.github.io)
+- **Models**: [huggingface.co/Beetle-HumanScale](https://huggingface.co/Beetle-HumanScale)
+- **Paper**: [arxiv.org/abs/2609.22633](https://arxiv.org/abs/2609.22633)
+
+---
+
+## **License**
+
+BeetleLM is open-source under the [Apache License 2.0](LICENSE).
+
+---
+
+## **Citation**
+
+If you use **BeetleLM** in your research, please cite our paper:
+
+```bibtex
+@misc{beetlelm,
+    title  = {BeetleLM: Transparently Training Bilingual Language Models for Learning-Dynamics Research},
+    author = {Salhan, Suchir and others},
+    year   = {2026},
+    eprint = {2609.22633},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.CL},
+    url    = {https://arxiv.org/abs/2609.22633}
+}
 ```
 
-Light install for the CPU quickstart only (no heavy training stack):
-
-```bash
-pip install "torch>=2.5.1" transformers numpy pyyaml click
-pip install -e . --no-deps
-```
-
-Convenience script:
-
-```bash
-./install.sh          # full install + smoke train
-./install.sh --toy    # light (toy) install + smoke train
-```
-
-## Quickstart (CPU, zero downloads)
-
-```bash
-beetlelm-toy --config_path configs/tiny_cpu.yaml
-```
-
-or from Python:
-
-```python
-from beetlelm.toy import train
-results = train("configs/tiny_cpu.yaml")
-print(results["final_loss"], results["checkpoint_dir"])
-```
-
-## Reproduce the headline toy result
-
-`configs/tiny_cpu.yaml` trains a **0.72M-parameter** PicoDecoder for 200 steps
-on the in-repo bilingual (English + Spanish) byte corpus. On a laptop CPU it
-finishes in about **15 seconds** and produces:
-
-| metric           | expected value |
-|------------------|----------------|
-| final train loss | ~0.20 |
-| final val loss   | ~0.37 |
-| parameters       | 722,048 |
-
-Random loss over the 256-way byte vocabulary is `ln(256) ≈ 5.55`, so the drop
-to ~0.2 shows the model has learned the toy corpus. The expected numbers are
-committed in [`baselines/tiny_cpu_baseline.json`](baselines/tiny_cpu_baseline.json);
-diff your run against them (allow ~0.05 tolerance across hardware / PyTorch
-versions). Runs are deterministic on CPU given the seed. These are toy-scale
-sanity numbers, not research results.
-
-The run writes a Hugging Face checkpoint plus `metrics.json` to `runs/tiny_cpu/`:
-
-```python
-from beetlelm.pico_decoder.pico_decoder import PicoDecoderHF
-from beetlelm.bytes import ByteTokenizerManager
-model = PicoDecoderHF.from_pretrained("runs/tiny_cpu")
-tok   = ByteTokenizerManager.from_pretrained("runs/tiny_cpu")
-```
-
-## Change one variable
-
-Everything is driven by the YAML config or by `overrides` / CLI flags:
-
-```bash
-beetlelm-toy --config_path configs/tiny_cpu.yaml --seed 7 --max_steps 400
-beetlelm-toy --config_path configs/tiny_cpu.yaml --d_model 256
-```
-
-```python
-from beetlelm.toy import train
-train("configs/tiny_cpu.yaml", overrides={
-    "model":    {"d_model": 256, "n_layers": 6},
-    "training": {"seed": 7, "max_steps": 400},
-})
-```
-
-Point `data.train_file` at any UTF-8 text file to train on your own corpus.
-
-## Using the full framework
-
-The full trainer targets larger runs on real datasets and the architecture zoo
-(pico, bgpt, MoE, SSM, geo-bilingual, H-Net, MambaByte), with continual-learning
-extensions (EWC, MAML/SMLMT, replay, LoRA, layer growth, ...). Configs live under
-`configs/` and launchers under `script/`:
-
-```bash
-beetlelm-train --config_path configs/pico_default.yaml
-beetlelm-train --config_path configs/quickstart_fineweb.yaml --validate_only
-```
-
-Some paths need extra, non-PyPI dependencies (e.g. `architecture: hnet` needs
-`mamba_ssm` / `flash_attn` / the upstream `hnet` package; DeepSpeed is
-Linux-only) — these import lazily, so the base install stays clean. See the
-notes at the bottom of `pyproject.toml`.
-
-## Computational requirements
-
-| run | config | params | steps | device | time | RAM |
-|-----|--------|--------|-------|--------|------|-----|
-| smoke    | `configs/smoke.yaml`    | 0.12M | 3   | CPU | ~3 s   | < 1 GB |
-| tiny_cpu | `configs/tiny_cpu.yaml` | 0.72M | 200 | CPU | ~15 s  | < 1 GB |
-
-The headline reproducible result runs on CPU. To scale up, raise `n_layers`,
-`d_model`, `max_steps`, enlarge the corpus, and set `training.device: cuda`. The
-full research configs assume multi-GPU nodes.
-
-## Project layout
-
-```
-beetlelm/
-├── src/beetlelm/
-│   ├── pico_decoder/     # PicoDecoder architecture (+ HF wrapper)
-│   ├── bgpt/ beetle_moe/ beetle_ssm/ geo_bilingual/ hnet_arch/ mambabyte/
-│   │                     # the architecture zoo
-│   ├── bilingual/        # bilingual data pipeline + tokenizer manager
-│   ├── continual/        # EWC, MAML/SMLMT, replay, LoRA, layer growth, ...
-│   ├── working_memory/ pre_pretraining/ checkpointing/ optim/ config/
-│   ├── bytes/            # download-free byte / codepoint tokenizers
-│   ├── training/         # the full research trainer
-│   ├── toy/              # download-free CPU quickstart (beetlelm-toy)
-│   └── cli/train.py      # `beetlelm-train` console entry point
-├── configs/              # research configs + tiny_cpu.yaml / smoke.yaml
-├── script/               # cluster launchers and helpers
-├── data/toy_corpus.txt   # ~18 KB synthetic bilingual corpus
-├── baselines/            # expected toy-run metrics
-├── notebooks/quickstart.ipynb
-├── tests/                # full test suite + test_toy_smoke.py (fast, CPU)
-└── ci/ci.yml             # GitHub Actions workflow (see "Continuous integration")
-```
-
-## Testing
-
-```bash
-# fast, CPU, no downloads:
-pytest -q tests/test_toy_smoke.py
-```
-
-The toy smoke suite trains the real model for a few steps on CPU and asserts the
-loss is finite, that the model learns, that runs are deterministic, and that a
-loadable checkpoint is written. The remaining `tests/` exercise the full stack
-and need its heavy dependencies (and sometimes a GPU).
-
-## Continuous integration
-
-The GitHub Actions workflow lives at [`ci/ci.yml`](ci/ci.yml) (it validates the
-toy quickstart on Python 3.10–3.12). It ships outside `.github/workflows/`
-because the initial push token lacked the `workflow` OAuth scope. To activate
-it, the maintainer runs once:
-
-```bash
-gh auth refresh -h github.com -s workflow
-mkdir -p .github/workflows && git mv ci/ci.yml .github/workflows/ci.yml
-git commit -m "Enable CI workflow" && git push
-```
-
-## Experiment tracking
-
-Weights & Biases is **forced offline by default** (`WANDB_MODE=offline`,
-`WANDB_DISABLED=true`, set on `import beetlelm`), so nothing phones home unless
-you explicitly opt in by setting those environment variables yourself.
-
-## Learn more
-
-- **Tutorial:** [beetlelm walkthrough](https://beetlelm.github.io/docs.html#beetlelm) on the project docs.
-- **Project home:** https://beetlelm.github.io
-- **Framework overview:** https://beetlelm.github.io/framework.html
-- **Paper:** *Beetle: A Bilingual Model Suite for Modelling Second-Language Processing* (EMNLP 2026) — https://arxiv.org/abs/2609.22633
-
-## Part of the Beetle ecosystem
-
-- **[beetlelm](https://github.com/beetlelm/beetlelm)** (this repo) — core training framework.
-- **[beetle-data](https://github.com/beetlelm/beetle-data)** — bilingual data-preparation pipeline.
-- **[beetle-analyze](https://github.com/beetlelm/beetle-analyze)** — evaluation and interpretability analysis toolkit.
-- **[beetle-explorer](https://github.com/beetlelm/beetle-explorer)** — no-code Colab model explorer.
-
-## Citation / DOI
-
-If you use this software, please cite it (see [`CITATION.cff`](CITATION.cff)):
-
-```
-Salhan, Suchir. beetlelm: a framework for transparently training bilingual
-language models. Version 0.1.0, 2026. https://github.com/beetlelm/beetlelm
-```
-
-A `.zenodo.json` is included so the maintainer can connect the repository to
-[Zenodo](https://zenodo.org) and mint a DOI on release: enable the repo in the
-Zenodo GitHub integration, then publish a GitHub release — Zenodo archives the
-tagged version and issues a DOI, which can then be added here as a badge. (The
-DOI cannot be minted without the maintainer's Zenodo authorization.)
-
-## License
-
-[Apache-2.0](LICENSE).
+**Happy Training!** For more information and tutorials, visit our website at [beetlelm.github.io](https://beetlelm.github.io).
